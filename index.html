@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>P2P Chess — Auto Connect</title>
+  <title>P2P Chess — Auto Connect with Turns</title>
   <link rel="stylesheet" href="https://unpkg.com/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css" />
   <style>
     body{font-family:sans-serif;background:#0f172a;color:#e6eef8;margin:0}
@@ -16,12 +16,12 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Peer-to-Peer Chess — Auto Connect</h1>
+  <h1>Peer-to-Peer Chess — Auto Connect (Turn-based)</h1>
   <div id="board"></div>
   <div class="controls">
     <input id="gameId" placeholder="Game code" />
-    <button id="hostBtn">Host Game</button>
-    <button id="joinBtn">Join Game</button>
+    <button id="hostBtn">Host Game (Play White)</button>
+    <button id="joinBtn">Join Game (Play Black)</button>
     <button id="newBtn">New Game</button>
     <button id="undoBtn">Undo</button>
     <button id="flipBtn">Flip Board</button>
@@ -39,26 +39,29 @@
   const board = Chessboard('board', {draggable:true, position:'start', onDrop:onDrop, onSnapEnd:onSnapEnd})
   const game = new Chess()
   const logEl = document.getElementById('log')
+  let myColor = 'white' // default for host
+
   function log(msg){logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight}
 
   let peer = null
-  let signalClient = null
-
-  const socket = io('https://simple-signal.herokuapp.com') // public demo server
-  signalClient = new SimpleSignalClient(socket)
+  const socket = io('https://00850ff6-5701-4601-9e81-d2a56919d140-00-3s8ymv4r0l5bq.worf.replit.dev/') // <-- replace with your Replit URL
+  const signalClient = new SimpleSignalClient(socket)
 
   document.getElementById('hostBtn').onclick = async ()=>{
+    myColor = 'white'
+    board.orientation('white')
     const id = document.getElementById('gameId').value.trim()
     if(!id) return alert('Enter a game code')
     log('Hosting game: '+id)
     signalClient.on('request', async request => {
-      log('Incoming connection request')
       peer = request.accept()
       setupPeer()
     })
   }
 
   document.getElementById('joinBtn').onclick = async ()=>{
+    myColor = 'black'
+    board.orientation('black')
     const id = document.getElementById('gameId').value.trim()
     if(!id) return alert('Enter a game code')
     log('Joining game: '+id)
@@ -79,6 +82,10 @@
   }
 
   function onDrop(source, target){
+    // Enforce turn
+    if((game.turn()==='w' && myColor!=='white') || (game.turn()==='b' && myColor!=='black')){
+      return 'snapback'
+    }
     const move = game.move({from:source, to:target, promotion:'q'})
     if(move === null) return 'snapback'
     board.position(game.fen())
